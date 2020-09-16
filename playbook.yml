@@ -8,7 +8,7 @@
   vars:
     key_name: my_aws
     region: eu-west-1
-    image: ami-0c3e74fa87d2a4227 # https://cloud-images.ubuntu.com/locator/ec2/
+    image:  ami-008320af74136c628 # https://cloud-images.ubuntu.com/locator/ec2/
     id: "web-app"
     sec_group: "{{ id }}-sec"
 
@@ -33,15 +33,21 @@
       - local_action: 
           module: copy 
           content: "{{ result_ip }}"
-          dest: /home/ubuntu/Ansible/AWS_Ansible/task_input
+          dest: /home/ubuntu/AWS_Ansible/task_input
 
       tags: always
 
-    - name: This command will find the ip address of instances
-      shell:
-        cmd: fold -s task_input | grep "public_dns_name" | tail -1 | awk -F "\"" '{print $4}' > ip_address
-        cmd: sed -i "2ikubernetes-master ansible_host=$(cat ip_address)" hostss
-        chdir: /home/ubuntu/Ansible/AWS_Ansible
+
+    - name: This command will find the ip address of master instances
+      shell: |
+        sed 's/,/\n/g' task_input | grep "private_ip_address"  | head -1 |  awk -F "\"" '{print $6}' > Mip_address
+        sed -i "2ikubernetes-master ansible_host=ubuntu@"$(cat Mip_address)"" /home/ubuntu/kubernetes-and-ansible/centos/hosts
+        #cd /home/ubuntu/kubernetes-and-ansible/centos
+
+    - name: This command will find the ip address of worker instances
+      shell: |
+        sed 's/,/\n/g' task_input | grep "private_ip_address"  | tail -1 |  awk -F "\"" '{print $4}' > Wip_address
+        sed -i "5ikubernetes-worker ansible_host=ubuntu@"$(cat Wip_address)"" /home/ubuntu/kubernetes-and-ansible/centos/hosts
 
 
     - name: Provisioning EC2 instances
@@ -82,7 +88,7 @@
           instance_type: t2.micro
           region: "{{ region }}"
           wait: true
-          count: 1
+          count: 2
           # exact_count: 2
           # count_tag:
           #   Name: App
